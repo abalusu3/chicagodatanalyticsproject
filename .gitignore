@@ -1,0 +1,65 @@
+# --- Secrets / local config (keep .env.example tracked) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+service-account*.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-version
+
+# --- Test / lint / type caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Spark ---
+spark-warehouse/
+metastore_db/
+derby.log
+
+# --- Airflow ---
+airflow-logs/
+logs/
+airflow.db
+airflow.cfg
+webserver_config.py
+*.pid
+
+# --- Local data (don't commit raw/large data; test fixtures are fine) ---
+data/
+*.parquet
+*.csv
+*.db
+*.sqlite
+*.sqlite3
+!tests/fixtures/**
+
+# --- Docker volumes ---
+pgdata/
+postgres-data/
+
+# --- Editors / OS ---
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+*.swp

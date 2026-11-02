@@ -1,0 +1,17 @@
+-- Rebuild aggregates only for the days affected by this load. Run inside the load transaction,
+-- AFTER 020_upsert_fact.sql.
+--
+-- TODO(1): DELETE FROM c311.agg_daily_requests
+--          WHERE day IN (SELECT DISTINCT created_date FROM c311_staging.service_request);
+-- TODO(2): INSERT INTO c311.agg_daily_requests
+--          SELECT created_date, sr_type, COALESCE(community_area, -1), count(*), count(closed_ts), ...
+--          FROM c311.fact_service_request
+--          WHERE created_date IN (SELECT DISTINCT created_date FROM c311_staging.service_request)
+--          GROUP BY 1, 2, 3;
+--
+-- WHY delete+insert and not incremental +1/-1 math: a request changing status on an old
+--   created_date would double count. Recomputing the affected days from the fact table is
+--   always correct and naturally idempotent.
+-- THINK: what if a row's created_date itself changed (rare)? The old day isn't in staging's
+--   created_date set. Do you care? Document the decision (or handle it via the previous value).
+-- OPTIONAL: agg_resolution_time_daily using percentile_cont for p50/p90 hours-to-close.

@@ -1,0 +1,68 @@
+# CI skeleton. Not yet executed anywhere. Expect to tweak after the first real run.
+# Philosophy: the fast job must stay fast (no Spark, no docker) so you actually run it.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+
+  test-fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      # Tests marked `todo` are unimplemented scaffolds and are skipped by their own markers
+      # until you fill them in; once implemented, they run here.
+      - run: pytest -m "not spark and not integration" --cov=c311 --cov-report=term-missing
+
+  test-spark:
+    # Slower: needs Java + pyspark + delta jars downloaded at runtime.
+    # TODO(you): enable once tests/unit/test_transform.py has real Spark tests.
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[spark,dev]"
+      - run: pytest -m spark
+
+  dag-import:
+    # Catches broken DAG imports early without running Airflow's scheduler.
+    # TODO(you): enable once dags/c311_pipeline.py is real. Needs apache-airflow installed
+    # with the official constraints file for your Airflow version.
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          echo "TODO: pip install apache-airflow==2.10.4 with constraints, then import the DAG"

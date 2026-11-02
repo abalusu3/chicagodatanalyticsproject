@@ -1,0 +1,50 @@
+# Non-secret pipeline settings. Secrets and endpoints come from environment variables
+# (see .env.example). The Pydantic models that validate this file live in src/c311/config.py:
+# if you add a key here, add it there first.
+
+source:
+  base_url: https://data.cityofchicago.org
+  dataset_id: v6vf-nfxy          # "311 Service Requests" (verified 2026-11-02)
+  # Verified: default $limit is 1000; SODA 2.0 endpoints allow up to 50,000.
+  page_size: 10000
+  # Field that drives incremental extraction. Chicago local time, NO timezone (floating_timestamp).
+  cursor_field: last_modified_date
+  tiebreaker_field: sr_number    # makes $order deterministic when timestamps tie
+  timeout_seconds: 60
+
+retry:
+  max_attempts: 5
+  backoff_base_seconds: 2.0
+  backoff_max_seconds: 120.0
+  retry_on_status: [429, 500, 502, 503, 504]
+  # Minimum pause between requests; keep >0 to be a polite client even with a token.
+  min_request_interval_seconds: 0.25
+
+extraction:
+  # Re-read this much history before each window start, to catch rows the portal published
+  # late. Safe because curated writes are idempotent. See docs/adr/0002.
+  lookback_hours: 6
+  source_timezone: America/Chicago
+
+storage:
+  raw_prefix: chicago_311         # s3://<raw bucket>/chicago_311/...
+  curated_table_path: chicago_311/curated/service_requests
+  quarantine_table_path: chicago_311/curated/service_requests_quarantine
+
+quality:
+  # error -> run fails (nothing promoted); warn -> logged + metric, run continues.
+  max_quarantine_fraction: 0.02    # fail if >2% of a batch is quarantined (tune after exploring)
+  chicago_bbox:                    # rough sanity box, NOT a legal boundary
+    lat_min: 41.6
+    lat_max: 42.1
+    lon_min: -87.95
+    lon_max: -87.5
+  max_future_skew_minutes: 60
+
+reconciliation:
+  # Source can change mid-extraction, so allow a tiny drift between source and raw counts.
+  source_vs_raw_tolerance_fraction: 0.001
+
+warehouse:
+  schema: c311
+  staging_schema: c311_staging

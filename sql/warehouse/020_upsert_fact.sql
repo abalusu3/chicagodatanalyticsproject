@@ -1,0 +1,11 @@
+-- Upsert staged rows into the fact table. Run inside the load transaction.
+--
+-- TODO(1): INSERT INTO c311.fact_service_request (...) SELECT ... FROM c311_staging.service_request
+--          ON CONFLICT (sr_number) DO UPDATE SET <every non-key column> = EXCLUDED.<col>
+--          WHERE EXCLUDED.last_modified_ts >= c311.fact_service_request.last_modified_ts;
+--
+-- WHY the WHERE: replaying an old batch must never regress a row that is already newer.
+-- EDGE CASE: staging itself must not contain two rows for one sr_number, or Postgres raises
+--   "ON CONFLICT DO UPDATE command cannot affect row a second time". The curated layer is
+--   unique by construction; add a cheap assertion query anyway and think about why.
+-- Postgres 15+ also has MERGE; decide whether ON CONFLICT or MERGE is the better interview story.
