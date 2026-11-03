@@ -27,7 +27,6 @@ def test_retryable_flags():
     assert DataQualityError("x").retryable is False
 
 
-
 def test_log_event_emits_one_json_line_with_run_context(capfd):
     """bind_run('r1','extract'); log_event(logger,'page_fetched',rows=3). Parse the output as JSON;
     expect run_id, stage, level, event, timestamp(UTC ISO), rows."""

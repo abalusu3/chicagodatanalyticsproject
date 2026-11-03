@@ -22,7 +22,12 @@ DONE WHEN
 
 from __future__ import annotations
 
+import logging
 from typing import Protocol
+
+from c311.logging_utils import log_event
+
+_logger = logging.getLogger("c311.metrics")
 
 
 class Metrics(Protocol):
@@ -31,17 +36,13 @@ class Metrics(Protocol):
 
 
 class LogMetrics:
-    """TODO(1): implement Metrics by emitting a structured log line per call.
-
-    Why log-based first: zero infra, and it makes `docker compose logs | grep c311.` a
-    functional dashboard while you build everything else.
-    """
+    """Metrics implementation that emits one structured log line per call."""
 
     def incr(self, name: str, value: float = 1, **tags: str) -> None:
-        raise NotImplementedError
+        log_event(_logger, "metric", metric=name, kind="counter", value=value, tags=tags)
 
     def gauge(self, name: str, value: float, **tags: str) -> None:
-        raise NotImplementedError
+        log_event(_logger, "metric", metric=name, kind="gauge", value=value, tags=tags)
 
 
 # TODO(2) (optional, later): airflow `on_failure_callback` helper here that formats

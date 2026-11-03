@@ -17,15 +17,14 @@ DONE WHEN
 
 from __future__ import annotations
 
+import json
 import logging
+import sys
 from contextvars import ContextVar
+from datetime import UTC, datetime
 
 run_id_var: ContextVar[str | None] = ContextVar("run_id", default=None)
 stage_var: ContextVar[str | None] = ContextVar("stage", default=None)
-
-import json
-import sys
-from datetime import datetime, timezone
 
 _HANDLER_MARK = "_c311_handler"
 _SENSITIVE_KEYS = {"x-app-token", "authorization", "password", "secret", "token"}
@@ -35,8 +34,7 @@ def _redact(value: object) -> object:
     """Mask values under sensitive keys, recursively (headers dicts are nested)."""
     if isinstance(value, dict):
         return {
-            k: "***" if str(k).lower() in _SENSITIVE_KEYS else _redact(v)
-            for k, v in value.items()
+            k: "***" if str(k).lower() in _SENSITIVE_KEYS else _redact(v) for k, v in value.items()
         }
     if isinstance(value, (list, tuple)):
         return [_redact(v) for v in value]
@@ -46,8 +44,8 @@ def _redact(value: object) -> object:
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload = dict(getattr(record, "data", {}))  # extra fields first...
-        payload.update(                               # ...so core keys can't be overwritten
-            timestamp=datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+        payload.update(  # ...so core keys can't be overwritten
+            timestamp=datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             level=record.levelname,
             event=record.getMessage(),
             run_id=run_id_var.get(),

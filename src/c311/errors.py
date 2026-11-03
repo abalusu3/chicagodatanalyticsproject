@@ -43,8 +43,6 @@ class PipelineError(Exception):
         return " | ".join(parts)
 
 
-
-
 class TransientSourceError(PipelineError):
     """Network blips, 429, 5xx. Safe to retry."""
 
