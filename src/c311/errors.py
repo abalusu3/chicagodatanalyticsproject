@@ -34,6 +34,16 @@ class PipelineError(Exception):
     #   Why: Airflow shows only str(exception) in the task log summary. If the hint is not in
     #   that string, nobody sees it.
 
+    def __str__(self) -> str:
+        parts = [super().__str__()]
+        if self.context:
+            parts.append(" ".join(f"{k}={v}" for k, v in self.context.items()))
+        if self.hint:
+            parts.append(f"hint: {self.hint}")
+        return " | ".join(parts)
+
+
+
 
 class TransientSourceError(PipelineError):
     """Network blips, 429, 5xx. Safe to retry."""

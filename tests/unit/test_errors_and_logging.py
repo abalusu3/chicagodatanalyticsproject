@@ -2,18 +2,30 @@
 
 import pytest
 
+from c311.errors import (
+    DataQualityError,
+    SchemaDriftError,
+    TransientSourceError,
+    WarehouseLoadError,
+)
+
 pytestmark = pytest.mark.todo
 
 
 def test_error_str_includes_context_and_hint():
-    """str(TransientSourceError("429 from SODA", hint="see runbook#rate-limits", page=3))
-    contains the message, 'page=3' and the hint."""
-    pytest.skip("TODO")
+    err = TransientSourceError("429 from SODA", hint="see runbook#rate-limits", page=3)
+    text = str(err)
+    assert "429 from SODA" in text
+    assert "page=3" in text
+    assert "see runbook#rate-limits" in text
 
 
 def test_retryable_flags():
-    """TransientSourceError/WarehouseLoadError retryable; SchemaDriftError/DataQualityError not."""
-    pytest.skip("TODO")
+    assert TransientSourceError("x").retryable is True
+    assert WarehouseLoadError("x").retryable is True
+    assert SchemaDriftError("x").retryable is False
+    assert DataQualityError("x").retryable is False
+
 
 
 def test_log_event_emits_one_json_line_with_run_context(capfd):
