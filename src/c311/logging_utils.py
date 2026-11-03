@@ -23,25 +23,60 @@ from contextvars import ContextVar
 run_id_var: ContextVar[str | None] = ContextVar("run_id", default=None)
 stage_var: ContextVar[str | None] = ContextVar("stage", default=None)
 
+import json
+import sys
+from datetime import datetime, timezone
+
+_HANDLER_MARK = "_c311_handler"
+_SENSITIVE_KEYS = {"x-app-token", "authorization", "password", "secret", "token"}
+
+
+def _redact(value: object) -> object:
+    """Mask values under sensitive keys, recursively (headers dicts are nested)."""
+    if isinstance(value, dict):
+        return {
+            k: "***" if str(k).lower() in _SENSITIVE_KEYS else _redact(v)
+            for k, v in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_redact(v) for v in value]
+    return value
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = dict(getattr(record, "data", {}))  # extra fields first...
+        payload.update(                               # ...so core keys can't be overwritten
+            timestamp=datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            level=record.levelname,
+            event=record.getMessage(),
+            run_id=run_id_var.get(),
+            stage=stage_var.get(),
+            logger=record.name,
+        )
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        return json.dumps(payload, default=str)  # default=str: never crash on odd types
+
 
 def configure_logging(level: str = "INFO") -> None:
-    """TODO(1): install a root handler with a JSON formatter; idempotent (calling twice must
-    not duplicate handlers - Airflow tasks re-import modules).
-
-    Formatter should add run_id/stage from the ContextVars above.
-    """
-    raise NotImplementedError
+    root = logging.getLogger()
+    for h in list(root.handlers):  # remove only OUR previous handler
+        if getattr(h, _HANDLER_MARK, False):
+            root.removeHandler(h)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JsonFormatter())
+    setattr(handler, _HANDLER_MARK, True)
+    root.addHandler(handler)
+    root.setLevel(level)
 
 
 def bind_run(run_id: str, stage: str) -> None:
-    """TODO(2): set the context vars. Airflow: call at the top of each task callable."""
-    raise NotImplementedError
+    run_id_var.set(run_id)
+    stage_var.set(stage)
 
 
 def log_event(logger: logging.Logger, event: str, **fields: object) -> None:
-    """TODO(3): logger.info with `event` and `fields` attached as structured extras.
-
-    EDGE CASE: field names that collide with LogRecord attributes ("name", "message"...)
-    raise KeyError in stdlib logging. Namespace them (e.g. under a `data` key).
-    """
-    raise NotImplementedError
+    # Fields go under a single "data" extra, so a field named "name" or "message"
+    # can't collide with LogRecord attributes.
+    logger.info(event, extra={"data": _redact(fields)})
